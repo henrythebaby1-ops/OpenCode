@@ -1,0 +1,14 @@
+# Only OpenCode's own files are tracked. This folder also holds unrelated projects
+# (and generated output) that must never be committed.
+/*
+!/.gitignore
+!/README.md
+!/index.html
+!/package.json
+!/package-lock.json
+!/vite.config.js
+!/src/
+!/scripts/
+
+.DS_Store
+*.log
