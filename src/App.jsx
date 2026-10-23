@@ -25,7 +25,7 @@ import { canPickWithHandles, fence, pickFiles, readAttachment, readDropped, writ
 import { cleanOutput, execCommand, proposedCommands } from './lib/terminal';
 import { STARTER } from './lib/sandbox';
 import { extractFiles, splitFences } from './lib/markdown';
-import { DEFAULT_OLLAMA_URL, formatBytes, listModels, loadedModels, preload, pullModel, setOllamaBase, streamChat } from './lib/ollama';
+import { DEFAULT_OLLAMA_URL, diagnoseConnection, formatBytes, listModels, loadedModels, preload, pullModel, setOllamaBase, streamChat } from './lib/ollama';
 import { HAS_LOCAL_SERVER, PAGES_ORIGIN } from './lib/env';
 import { MODES, systemPrompt } from './lib/modes';
 import { THEMES } from './lib/themes';
@@ -152,6 +152,7 @@ export default function App() {
   const [models, setModels] = useState([]);
   const [loaded, setLoaded] = useState([]);
   const [ollama, setOllama] = useState('checking');
+  const [ollamaIssue, setOllamaIssue] = useState('');
   const [chats, setChats] = useState(() => {
     const saved = loadChats();
     if (saved) {
@@ -286,6 +287,7 @@ export default function App() {
       const list = await listModels();
       setModels(list);
       setOllama('online');
+      setOllamaIssue('');
       setLoaded(await loadedModels());
       setModel(prev => {
         if (list.some(m => m.name === prev)) return prev;
@@ -294,6 +296,7 @@ export default function App() {
       return list;
     } catch {
       setOllama('offline');
+      if (!HAS_LOCAL_SERVER) setOllamaIssue(await diagnoseConnection());
       return [];
     }
   }, []);
@@ -1462,23 +1465,43 @@ export default function App() {
                       </div>
                       ) : (
                         <div className="notice err setup">
-                          <strong>Connect OpenCode to Ollama on your computer</strong>
-                          <ol>
-                            <li>
-                              Install Ollama from ollama.com and pull a model, e.g. <code>ollama pull qwen2.5-coder:3b</code>
-                            </li>
-                            <li>
-                              Allow this site to use it (macOS): <code>launchctl setenv OLLAMA_ORIGINS "{PAGES_ORIGIN}"</code>
-                            </li>
-                            <li>Quit and reopen the Ollama app (on Linux or Windows set the same OLLAMA_ORIGINS variable and restart Ollama).</li>
-                            <li>If your browser asks to let this site access apps on your device, choose Allow.</li>
-                          </ol>
-                          <div>
-                            Your chats and models stay on your machine — this page only talks to {settings.ollamaUrl || DEFAULT_OLLAMA_URL}.{' '}
-                            <button type="button" className="link" onClick={refreshModels}>
+                          {ollamaIssue === 'blocked' ? (
+                            <strong>Ollama is running, but it’s blocking this website</strong>
+                          ) : (
+                            <strong>Can’t reach Ollama on this computer</strong>
+                          )}
+                          <p className="dim">
+                            {ollamaIssue === 'blocked'
+                              ? 'Ollama only answers websites you allow. Allow this one, then restart Ollama:'
+                              : 'Make sure Ollama is installed and running, and that it allows this website:'}
+                          </p>
+                          <div className="setup-step">
+                            <span className="dim">1. Allow this site (Terminal, macOS):</span>
+                            <code>launchctl setenv OLLAMA_ORIGINS "{PAGES_ORIGIN}"</code>
+                          </div>
+                          <div className="setup-step">
+                            <span className="dim">2. Restart Ollama — whichever way you run it:</span>
+                            <span>
+                              Homebrew: <code>brew services restart ollama</code>
+                            </span>
+                            <span>Ollama app: quit it from the menu bar and open it again</span>
+                            {ollamaIssue !== 'blocked' && (
+                              <span>
+                                Not installed yet? Get it from ollama.com, then <code>ollama pull qwen2.5-coder:3b</code>
+                              </span>
+                            )}
+                          </div>
+                          <div className="setup-step">
+                            <span className="dim">3. Come back and</span>{' '}
+                            <button type="button" className="btn primary" onClick={refreshModels}>
                               retry
                             </button>
                           </div>
+                          <p className="dim setup-note">
+                            If your browser asks to let this site access apps on your device, choose Allow. The launchctl setting resets when
+                            your Mac restarts, so run step 1 again after a reboot. Your chats and models stay on your machine — this page only
+                            talks to {settings.ollamaUrl || DEFAULT_OLLAMA_URL}.
+                          </p>
                         </div>
                       )
                     ) : ollama === 'online' && !models.length ? (

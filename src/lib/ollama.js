@@ -13,6 +13,20 @@ export const formatBytes = bytes => {
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 };
 
+/**
+ * After a request fails: is Ollama running but refusing this site's origin ('blocked'),
+ * or not reachable at all ('down')? A no-cors request still succeeds against a running
+ * server that rejects the origin, but fails when nothing is listening.
+ */
+export async function diagnoseConnection() {
+  try {
+    await fetch(`${BASE}/api/version`, { mode: 'no-cors', cache: 'no-store' });
+    return 'blocked';
+  } catch {
+    return 'down';
+  }
+}
+
 export async function listModels() {
   const res = await fetch(`${BASE}/api/tags`);
   if (!res.ok) throw new Error(`Ollama responded ${res.status}`);
